@@ -837,42 +837,96 @@ TeleportTab:CreateButton({
    end,
 })
 
+-- Server Hop (safe + non-blocking)
+if not miscTab then
+    miscTab = Window:CreateTab("misc", nil)
+end
+
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 
-local Button = miscTab:CreateButton({
-   Name = "Server Hop",
-   Callback = function()
-      local placeId = game.PlaceId
-      local jobId = game.JobId
-      local servers = {}
-      local cursor = ""
+local placeId = game.PlaceId
+local currentJobId = game.JobId
 
-      local function GetServers()
-         local url = ("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&limit=100%s")
-            :format(placeId, cursor ~= "" and "&cursor=" .. cursor or "")
-         local success, result = pcall(function()
-            return HttpService:JSONDecode(game:HttpGet(url))
-         end)
-         if success and result and result.data then
-            for _, server in pairs(result.data) do
-               if server.playing < server.maxPlayers and server.id ~= jobId then
-                  table.insert(servers, server.id)
-               end
+-- Ambil daftar server dengan safety (pcall + batas percobaan)
+local function fetchServers(maxResults)
+    local servers = {}
+    local cursor = nil
+    local attempts = 0
+    maxResults = maxResults or 10
+
+    repeat
+        attempts = attempts + 1
+        local url = ("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&limit=100%s")
+            :format(placeId, cursor and ("&cursor=" .. cursor) or "")
+
+        local ok, raw = pcall(function()
+            return game:HttpGet(url)
+        end)
+
+        if not ok or not raw then
+            warn("ServerHop: HttpGet failed", raw)
+            break
+        end
+
+        local ok2, data = pcall(function()
+            return HttpService:JSONDecode(raw)
+        end)
+
+        if not ok2 or not data or type(data) ~= "table" then
+            warn("ServerHop: JSON decode failed", data)
+            break
+        end
+
+        for _, s in ipairs(data.data or {}) do
+            -- pastikan bukan server sekarang dan masih ada slot kosong
+            if s.id and s.id ~= currentJobId and s.playing and s.maxPlayers and s.playing < s.maxPlayers then
+                table.insert(servers, s)
+                if #servers >= maxResults then break end
             end
-            cursor = result.nextPageCursor or ""
-         end
-      end
+        end
 
-      repeat
-         GetServers()
-      until cursor == "" or #servers >= 5
+        cursor = data.nextPageCursor
+    until (not cursor) or #servers >= maxResults or attempts >= 6
 
-      if #servers > 0 then
-         local chosenId = servers[math.random(1, #servers)]
-         TeleportService:TeleportToPlaceInstance(placeId, chosenId, Players.LocalPlayer)
-      else
-         Rayfield:Notify({
-            Title = "Server Hop",
-            Content = "cannot find server!",
+    return servers
+end
+
+-- Hop ke salah satu server dari hasil fetch
+local function serverHop()
+    -- run fetch di pcall supaya jika error ga crash seluruh script
+    local ok, servers = pcall(fetchServers, 12)
+    if not ok then
+        Rayfield:Notify({Title="Server Hop", Content="Gagal mengambil server (pcall error).", Duration=3})
+        return
+    end
+
+    if not servers or #servers == 0 then
+        Rayfield:Notify({Title="Server Hop", Content="Tidak ditemukan server lain atau akses diblok.", Duration=3})
+        return
+    end
+
+    -- pilih server acak dari list
+    local chosen = servers[math.random(1, #servers)]
+    if not chosen or not chosen.id then
+        Rayfield:Notify({Title="Server Hop", Content="Server tidak valid.", Duration=3})
+        return
+    end
+
+    local ok2, err = pcall(function()
+        TeleportService:TeleportToPlaceInstance(placeId, chosen.id, Players.LocalPlayer)
+    end)
+    if not ok2 then
+        Rayfield:Notify({Title="Server Hop", Content="Gagal teleport: "..tostring(err), Duration=4})
+    end
+end
+
+-- Tombol di miscTab (gunakan template buttonmu)
+miscTab:CreateButton({
+    Name = "Server Hop",
+    Callback = function()
+        -- tombol ini hanya memanggil fungsi; semua error di-handle di dalam
+        serverHop()
+    end,
+})
