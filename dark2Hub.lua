@@ -851,23 +851,16 @@ local Button = miscTab:CreateButton({
    Callback = function()
        Rayfield:Notify({
            Title = "Server Hop",
-           Content = "looking for another server...",
+           Content = "Mencari server lain...",
            Duration = 3,
        })
        
-       -- Method 1: TeleportService langsung
-       local success1 = pcall(function()
-           TeleportService:Teleport(placeId, Players.LocalPlayer)
-       end)
+       -- HAPUS Method 1 yang langsung teleport (ini yang bikin rejoin)
+       -- Langsung ke API method untuk dapetin server list
        
-       if success1 then
-           return
-       end
-       
-       -- Method 2: API Roblox dengan error handling
        local servers = {}
        local attempts = 0
-       local maxAttempts = 3
+       local maxAttempts = 5
        
        while attempts < maxAttempts and #servers == 0 do
            attempts = attempts + 1
@@ -879,29 +872,59 @@ local Button = miscTab:CreateButton({
            
            if success and result and result.data then
                for _, server in pairs(result.data) do
-                   if server.id ~= jobId and server.playing < server.maxPlayers and server.playing > 0 then
-                       table.insert(servers, server.id)
+                   -- PASTIKAN server bukan server sekarang DAN ada player
+                   if server.id ~= jobId and server.playing < server.maxPlayers and server.playing >= 1 then
+                       table.insert(servers, {id = server.id, playing = server.playing})
                    end
                end
            end
            
            if #servers == 0 then
-               wait(1)
+               Rayfield:Notify({
+                   Title = "Server Hop",
+                   Content = "Attempt " .. attempts .. "/" .. maxAttempts .. " - Mencari server...",
+                   Duration = 1,
+               })
+               wait(2)
            end
        end
        
-       -- Teleport ke server
+       -- Teleport ke server yang PASTI berbeda
        if #servers > 0 then
-           local randomServer = servers[math.random(1, #servers)]
+           -- Sort servers by player count untuk pilih yang paling aktif
+           table.sort(servers, function(a, b) return a.playing > b.playing end)
+           
+           local targetServer = servers[math.random(1, math.min(#servers, 10))] -- Pilih dari 10 server teratas
+           
+           Rayfield:Notify({
+               Title = "Server Hop",
+               Content = "Teleporting to server with " .. targetServer.playing .. " players...",
+               Duration = 2,
+           })
+           
            local success2 = pcall(function()
-               TeleportService:TeleportToPlaceInstance(placeId, randomServer, Players.LocalPlayer)
+               TeleportService:TeleportToPlaceInstance(placeId, targetServer.id, Players.LocalPlayer)
            end)
            
            if not success2 then
-               TeleportService:Teleport(placeId, Players.LocalPlayer)
+               -- Coba server lain kalau gagal
+               if #servers > 1 then
+                   local backupServer = servers[2]
+                   TeleportService:TeleportToPlaceInstance(placeId, backupServer.id, Players.LocalPlayer)
+               else
+                   Rayfield:Notify({
+                       Title = "Error",
+                       Content = "Gagal teleport ke server lain",
+                       Duration = 3,
+                   })
+               end
            end
        else
-           TeleportService:Teleport(placeId, Players.LocalPlayer)
+           Rayfield:Notify({
+               Title = "Server Hop Failed",
+               Content = "Tidak ada server lain yang tersedia",
+               Duration = 3,
+           })
        end
    end,
 })
@@ -926,7 +949,7 @@ local Button3 = miscTab:CreateButton({
    Callback = function()
        Rayfield:Notify({
            Title = "Server Hop",
-           Content = "MLooking for a server with few players...",
+           Content = "Mencari server dengan player sedikit...",
            Duration = 3,
        })
        
@@ -955,4 +978,3 @@ local Button3 = miscTab:CreateButton({
        end
    end,
 })
-
