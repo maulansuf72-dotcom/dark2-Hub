@@ -851,7 +851,7 @@ local Button = miscTab:CreateButton({
    Callback = function()
        Rayfield:Notify({
            Title = "Server Hop",
-           Content = "Mencari server lain...",
+           Content = "finding another servver...",
            Duration = 3,
        })
        
@@ -882,7 +882,7 @@ local Button = miscTab:CreateButton({
            if #servers == 0 then
                Rayfield:Notify({
                    Title = "Server Hop",
-                   Content = "Attempt " .. attempts .. "/" .. maxAttempts .. " - Mencari server...",
+                   Content = "Attempt " .. attempts .. "/" .. maxAttempts .. " - finding servver...",
                    Duration = 1,
                })
                wait(2)
@@ -914,7 +914,7 @@ local Button = miscTab:CreateButton({
                else
                    Rayfield:Notify({
                        Title = "Error",
-                       Content = "Gagal teleport ke server lain",
+                       Content = "failed to teleport to another server",
                        Duration = 3,
                    })
                end
@@ -922,7 +922,7 @@ local Button = miscTab:CreateButton({
        else
            Rayfield:Notify({
                Title = "Server Hop Failed",
-               Content = "Tidak ada server lain yang tersedia",
+               Content = "no other server available",
                Duration = 3,
            })
        end
@@ -949,7 +949,7 @@ local Button3 = miscTab:CreateButton({
    Callback = function()
        Rayfield:Notify({
            Title = "Server Hop",
-           Content = "Mencari server dengan player sedikit...",
+           Content = "looking for a server with few players...",
            Duration = 3,
        })
        
@@ -978,3 +978,4 @@ local Button3 = miscTab:CreateButton({
        end
    end,
 })
+
