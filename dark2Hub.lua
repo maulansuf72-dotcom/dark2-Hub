@@ -851,7 +851,7 @@ local Button = miscTab:CreateButton({
    Callback = function()
        Rayfield:Notify({
            Title = "Server Hop",
-           Content = "Mencari server lain...",
+           Content = "looking for another server...",
            Duration = 3,
        })
        
@@ -926,7 +926,7 @@ local Button3 = miscTab:CreateButton({
    Callback = function()
        Rayfield:Notify({
            Title = "Server Hop",
-           Content = "Mencari server dengan player sedikit...",
+           Content = "MLooking for a server with few players...",
            Duration = 3,
        })
        
@@ -955,3 +955,4 @@ local Button3 = miscTab:CreateButton({
        end
    end,
 })
+
