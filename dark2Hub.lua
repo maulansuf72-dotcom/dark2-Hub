@@ -745,92 +745,122 @@ local statsToggle = miscTab:CreateToggle({
    end,
 })
 
--- Pastikan ada tabel connections
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local connections = {}
-local hitboxSize = 0
-
--- Fungsi untuk expand hitbox
-local function expandHitbox(player, size)
-    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local hrp = player.Character.HumanoidRootPart
-        hrp.Size = Vector3.new(size, size, size)
-        hrp.Transparency = 0.7
-        hrp.Material = Enum.Material.Neon
-        hrp.BrickColor = BrickColor.new("Really red")
-        hrp.CanCollide = false
-    end
-end
-
--- Fungsi untuk reset hitbox player
-local function resetHitbox(player)
-    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local hrp = player.Character.HumanoidRootPart
-        hrp.Size = Vector3.new(2, 2, 1) -- ukuran default Roblox
-        hrp.Transparency = 1
-        hrp.Material = Enum.Material.Plastic
-        hrp.CanCollide = true
-    end
-end
-
--- Fungsi untuk apply ke semua player
-local function applyHitboxToAllPlayers(size)
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer then
-            expandHitbox(plr, size)
-        end
-    end
-end
-
--- Fungsi reset semua
-local function resetAllHitboxes()
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer then
-            resetHitbox(plr)
-        end
-    end
-end
-
--- Slider
-local hitboxSlider = mainTab:CreateSlider({
-   Name = "Hitbox Size (BUG)",
-   Range = {0, 100},
-   Increment = 5,
-   Suffix = " Size",
-   CurrentValue = 0,
-   Flag = "HitboxSlider",
+local noclipToggle = miscTab:CreateToggle({
+   Name = "Noclip",
+   CurrentValue = false,
+   Flag = "NoclipToggle",
    Callback = function(Value)
-       hitboxSize = Value
-
-       if hitboxSize > 0 then
-           applyHitboxToAllPlayers(hitboxSize)
-
-           -- Kalau player baru join
-           if not connections.playerAdded then
-               connections.playerAdded = Players.PlayerAdded:Connect(function(player)
-                   if player ~= LocalPlayer then
-                       player.CharacterAdded:Connect(function()
-                           task.wait(1)
-                           if hitboxSize > 0 then
-                               expandHitbox(player, hitboxSize)
-                           end
-                       end)
+       _G.noclip = Value
+       local RunService = game:GetService("RunService")
+       local player = game.Players.LocalPlayer
+       
+       if _G.noclip and not _G.noclipConn then
+           _G.noclipConn = RunService.Stepped:Connect(function()
+               if player.Character then
+                   for _, part in pairs(player.Character:GetDescendants()) do
+                       if part:IsA("BasePart") then
+                           part.CanCollide = false
+                       end
                    end
-               end)
-           end
-
-           Rayfield:Notify({
-               Title = "Hitbox Enabled",
-               Content = "Hitbox size: " .. Value,
-               Duration = 3,
-           })
+               end
+           end)
        else
-           resetAllHitboxes()
+           if _G.noclipConn then
+               _G.noclipConn:Disconnect()
+               _G.noclipConn = nil
+           end
+       end
+   end,
+})
+
+local TeleportTab = Window:CreateTab("Teleport", nil)
+
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+
+local locations = {
+    Lobby = CFrame.new(54.0298042, 13.5, -45.0270157),
+    Red   = CFrame.new(58.5368004, 13.5,  34.3241539),
+    Blue  = CFrame.new( 8.9982748,  8.0,  -1.58185959),
+}
+
+local function safeTP(cf)
+    local char = lp.Character or lp.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart", 5)
+    if hrp then
+        hrp.CFrame = cf + Vector3.new(0, 2, 0) -- biar gak nyangkut lantai
+        Rayfield:Notify({
+            Title = "Teleport Success",
+            Content = "Berhasil teleport!",
+            Duration = 2
+        })
+    else
+        Rayfield:Notify({
+            Title = "Teleport Failed",
+            Content = "HumanoidRootPart tidak ditemukan",
+            Duration = 2
+        })
+    end
+end
+
+local TeleportTab = Window:CreateTab("Teleport", nil)
+
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+
+-- Daftar lokasi teleport
+local locations = {
+    Lobby = CFrame.new(54.0298042, 13.5, -45.0270157),
+    Red   = CFrame.new(58.5368004, 13.5,  34.3241539),
+    Blue  = CFrame.new( 8.9982748,  8.0,  -1.58185959),
+}
+
+-- Fungsi aman buat teleport
+local function safeTP(cf)
+    local char = lp.Character or lp.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart", 5)
+    if hrp then
+        hrp.CFrame = cf + Vector3.new(0, 2, 0) -- biar gak nyangkut lantai
+        Rayfield:Notify({
+            Title = "Teleport Success",
+            Content = "Berhasil teleport!",
+            Duration = 2
+        })
+    else
+        Rayfield:Notify({
+            Title = "Teleport Failed",
+            Content = "HumanoidRootPart tidak ditemukan",
+            Duration = 2
+        })
+    end
+end
+
+-- Variabel simpan pilihan dropdown
+local selectedLocation = "Lobby"
+
+-- Dropdown Menu
+TeleportTab:CreateDropdown({
+   Name = "Pilih Lokasi",
+   Options = {"Lobby", "Red", "Blue"},
+   CurrentOption = {"Lobby"},
+   MultipleOptions = false,
+   Flag = "TeleportDropdown",
+   Callback = function(Options)
+       selectedLocation = Options[1] -- ambil pilihan
+   end,
+})
+
+-- Button Teleport (pakai template kamu)
+local Button = TeleportTab:CreateButton({
+   Name = "Teleport!",
+   Callback = function()
+       if locations[selectedLocation] then
+           safeTP(locations[selectedLocation])
+       else
            Rayfield:Notify({
-               Title = "Hitbox Disabled",
-               Content = "All hitboxes reset",
-               Duration = 3,
+               Title = "Error",
+               Content = "Lokasi tidak valid!",
+               Duration = 2
            })
        end
    end,
