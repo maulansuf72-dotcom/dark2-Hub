@@ -773,46 +773,17 @@ local noclipToggle = miscTab:CreateToggle({
    end,
 })
 
+-- Pastikan tab teleport cuma dibuat sekali aja
 local TeleportTab = Window:CreateTab("Teleport", nil)
 
 local Players = game:GetService("Players")
 local lp = Players.LocalPlayer
 
+-- Daftar lokasi teleport (urutan kanan → tengah → kiri sesuai revisi)
 local locations = {
-    Lobby = CFrame.new(54.0298042, 13.5, -45.0270157),
-    Red   = CFrame.new(58.5368004, 13.5,  34.3241539),
-    Blue  = CFrame.new( 8.9982748,  8.0,  -1.58185959),
-}
-
-local function safeTP(cf)
-    local char = lp.Character or lp.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart", 5)
-    if hrp then
-        hrp.CFrame = cf + Vector3.new(0, 2, 0) -- biar gak nyangkut lantai
-        Rayfield:Notify({
-            Title = "Teleport Success",
-            Content = "Berhasil teleport!",
-            Duration = 2
-        })
-    else
-        Rayfield:Notify({
-            Title = "Teleport Failed",
-            Content = "HumanoidRootPart tidak ditemukan",
-            Duration = 2
-        })
-    end
-end
-
-local TeleportTab = Window:CreateTab("Teleport", nil)
-
-local Players = game:GetService("Players")
-local lp = Players.LocalPlayer
-
--- Daftar lokasi teleport
-local locations = {
-    Lobby = CFrame.new(54.0298042, 13.5, -45.0270157),
-    Red   = CFrame.new(58.5368004, 13.5,  34.3241539),
-    Blue  = CFrame.new( 8.9982748,  8.0,  -1.58185959),
+    Lobby = CFrame.new(8.9982748, 8.0, -1.58185959),      -- kanan
+    Red   = CFrame.new(58.5368004, 13.5, 34.3241539),     -- tengah
+    Blue  = CFrame.new(54.0298042, 13.5, -45.0270157),    -- kiri
 }
 
 -- Fungsi aman buat teleport
@@ -846,12 +817,12 @@ TeleportTab:CreateDropdown({
    MultipleOptions = false,
    Flag = "TeleportDropdown",
    Callback = function(Options)
-       selectedLocation = Options[1] -- ambil pilihan
+       selectedLocation = Options[1]
    end,
 })
 
--- Button Teleport (pakai template kamu)
-local Button = TeleportTab:CreateButton({
+-- Button Teleport
+TeleportTab:CreateButton({
    Name = "Teleport!",
    Callback = function()
        if locations[selectedLocation] then
