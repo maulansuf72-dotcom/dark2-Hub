@@ -830,7 +830,7 @@ TeleportTab:CreateButton({
        else
            Rayfield:Notify({
                Title = "Error",
-               Content = "invalid location!",
+               Content = "Lokasi tidak valid!",
                Duration = 2
            })
        end
@@ -841,7 +841,7 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 
-local Button = Tab:CreateButton({
+local Button = miscTab:CreateButton({
    Name = "Server Hop",
    Callback = function()
       local placeId = game.PlaceId
@@ -874,7 +874,7 @@ local Button = Tab:CreateButton({
       else
          Rayfield:Notify({
             Title = "Server Hop",
-            Content = "cannot find server!",
+            Content = "Tidak ditemukan server lain!",
             Duration = 3
          })
       end
