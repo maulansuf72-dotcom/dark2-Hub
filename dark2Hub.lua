@@ -837,96 +837,121 @@ TeleportTab:CreateButton({
    end,
 })
 
--- Server Hop (safe + non-blocking)
-if not miscTab then
-    miscTab = Window:CreateTab("misc", nil)
-end
-
-local HttpService = game:GetService("HttpService")
+-- TAMBAHKAN CODE INI KE SCRIPT KAMU (SERVICES DAN VARIABLES)
 local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 
 local placeId = game.PlaceId
-local currentJobId = game.JobId
+local jobId = game.JobId
 
--- Ambil daftar server dengan safety (pcall + batas percobaan)
-local function fetchServers(maxResults)
-    local servers = {}
-    local cursor = nil
-    local attempts = 0
-    maxResults = maxResults or 10
+-- BUTTON SERVER HOP (PAKAI TEMPLATE KAMU)
+local Button = miscTab:CreateButton({
+   Name = "Server Hop",
+   Callback = function()
+       Rayfield:Notify({
+           Title = "Server Hop",
+           Content = "Mencari server lain...",
+           Duration = 3,
+       })
+       
+       -- Method 1: TeleportService langsung
+       local success1 = pcall(function()
+           TeleportService:Teleport(placeId, Players.LocalPlayer)
+       end)
+       
+       if success1 then
+           return
+       end
+       
+       -- Method 2: API Roblox dengan error handling
+       local servers = {}
+       local attempts = 0
+       local maxAttempts = 3
+       
+       while attempts < maxAttempts and #servers == 0 do
+           attempts = attempts + 1
+           
+           local success, result = pcall(function()
+               local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Desc&limit=100"
+               return HttpService:JSONDecode(game:HttpGet(url))
+           end)
+           
+           if success and result and result.data then
+               for _, server in pairs(result.data) do
+                   if server.id ~= jobId and server.playing < server.maxPlayers and server.playing > 0 then
+                       table.insert(servers, server.id)
+                   end
+               end
+           end
+           
+           if #servers == 0 then
+               wait(1)
+           end
+       end
+       
+       -- Teleport ke server
+       if #servers > 0 then
+           local randomServer = servers[math.random(1, #servers)]
+           local success2 = pcall(function()
+               TeleportService:TeleportToPlaceInstance(placeId, randomServer, Players.LocalPlayer)
+           end)
+           
+           if not success2 then
+               TeleportService:Teleport(placeId, Players.LocalPlayer)
+           end
+       else
+           TeleportService:Teleport(placeId, Players.LocalPlayer)
+       end
+   end,
+})
 
-    repeat
-        attempts = attempts + 1
-        local url = ("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&limit=100%s")
-            :format(placeId, cursor and ("&cursor=" .. cursor) or "")
+-- BUTTON REJOIN SERVER
+local Button2 = miscTab:CreateButton({
+   Name = "Rejoin Server",
+   Callback = function()
+       Rayfield:Notify({
+           Title = "Rejoining",
+           Content = "Rejoining server...",
+           Duration = 2,
+       })
+       
+       TeleportService:Teleport(placeId, Players.LocalPlayer)
+   end,
+})
 
-        local ok, raw = pcall(function()
-            return game:HttpGet(url)
-        end)
-
-        if not ok or not raw then
-            warn("ServerHop: HttpGet failed", raw)
-            break
-        end
-
-        local ok2, data = pcall(function()
-            return HttpService:JSONDecode(raw)
-        end)
-
-        if not ok2 or not data or type(data) ~= "table" then
-            warn("ServerHop: JSON decode failed", data)
-            break
-        end
-
-        for _, s in ipairs(data.data or {}) do
-            -- pastikan bukan server sekarang dan masih ada slot kosong
-            if s.id and s.id ~= currentJobId and s.playing and s.maxPlayers and s.playing < s.maxPlayers then
-                table.insert(servers, s)
-                if #servers >= maxResults then break end
-            end
-        end
-
-        cursor = data.nextPageCursor
-    until (not cursor) or #servers >= maxResults or attempts >= 6
-
-    return servers
-end
-
--- Hop ke salah satu server dari hasil fetch
-local function serverHop()
-    -- run fetch di pcall supaya jika error ga crash seluruh script
-    local ok, servers = pcall(fetchServers, 12)
-    if not ok then
-        Rayfield:Notify({Title="Server Hop", Content="Gagal mengambil server (pcall error).", Duration=3})
-        return
-    end
-
-    if not servers or #servers == 0 then
-        Rayfield:Notify({Title="Server Hop", Content="Tidak ditemukan server lain atau akses diblok.", Duration=3})
-        return
-    end
-
-    -- pilih server acak dari list
-    local chosen = servers[math.random(1, #servers)]
-    if not chosen or not chosen.id then
-        Rayfield:Notify({Title="Server Hop", Content="Server tidak valid.", Duration=3})
-        return
-    end
-
-    local ok2, err = pcall(function()
-        TeleportService:TeleportToPlaceInstance(placeId, chosen.id, Players.LocalPlayer)
-    end)
-    if not ok2 then
-        Rayfield:Notify({Title="Server Hop", Content="Gagal teleport: "..tostring(err), Duration=4})
-    end
-end
-
--- Tombol di miscTab (gunakan template buttonmu)
-miscTab:CreateButton({
-    Name = "Server Hop",
-    Callback = function()
-        -- tombol ini hanya memanggil fungsi; semua error di-handle di dalam
-        serverHop()
-    end,
+-- BUTTON LOW PLAYER SERVER
+local Button3 = miscTab:CreateButton({
+   Name = "Low Player Server",
+   Callback = function()
+       Rayfield:Notify({
+           Title = "Server Hop",
+           Content = "Mencari server dengan player sedikit...",
+           Duration = 3,
+       })
+       
+       local servers = {}
+       local success, result = pcall(function()
+           local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=100"
+           return HttpService:JSONDecode(game:HttpGet(url))
+       end)
+       
+       if success and result and result.data then
+           for _, server in pairs(result.data) do
+               if server.id ~= jobId and server.playing < server.maxPlayers and server.playing <= 5 then
+                   table.insert(servers, {id = server.id, playing = server.playing})
+               end
+           end
+           
+           table.sort(servers, function(a, b) return a.playing < b.playing end)
+           
+           if #servers > 0 then
+               TeleportService:TeleportToPlaceInstance(placeId, servers[1].id, Players.LocalPlayer)
+           else
+               TeleportService:Teleport(placeId, Players.LocalPlayer)
+           end
+       else
+           TeleportService:Teleport(placeId, Players.LocalPlayer)
+       end
+   end,
 })
