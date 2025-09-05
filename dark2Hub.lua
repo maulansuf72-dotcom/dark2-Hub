@@ -830,9 +830,53 @@ TeleportTab:CreateButton({
        else
            Rayfield:Notify({
                Title = "Error",
-               Content = "Lokasi tidak valid!",
+               Content = "invalid location!",
                Duration = 2
            })
        end
+   end,
+})
+
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+
+local Button = Tab:CreateButton({
+   Name = "Server Hop",
+   Callback = function()
+      local placeId = game.PlaceId
+      local jobId = game.JobId
+      local servers = {}
+      local cursor = ""
+
+      repeat
+         local url = ("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&limit=100%s")
+            :format(placeId, cursor ~= "" and "&cursor=" .. cursor or "")
+         local success, result = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(url))
+         end)
+
+         if success and result and result.data then
+            for _, server in pairs(result.data) do
+               if server.playing < server.maxPlayers and server.id ~= jobId then
+                  table.insert(servers, server.id)
+               end
+            end
+            cursor = result.nextPageCursor or ""
+         else
+            break
+         end
+      until cursor == "" or #servers >= 5
+
+      if #servers > 0 then
+         local chosenId = servers[math.random(1, #servers)]
+         TeleportService:TeleportToPlaceInstance(placeId, chosenId, Players.LocalPlayer)
+      else
+         Rayfield:Notify({
+            Title = "Server Hop",
+            Content = "cannot find server!",
+            Duration = 3
+         })
+      end
    end,
 })
