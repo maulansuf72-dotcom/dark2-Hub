@@ -849,13 +849,12 @@ local Button = miscTab:CreateButton({
       local servers = {}
       local cursor = ""
 
-      repeat
+      local function GetServers()
          local url = ("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Asc&limit=100%s")
             :format(placeId, cursor ~= "" and "&cursor=" .. cursor or "")
          local success, result = pcall(function()
             return HttpService:JSONDecode(game:HttpGet(url))
          end)
-
          if success and result and result.data then
             for _, server in pairs(result.data) do
                if server.playing < server.maxPlayers and server.id ~= jobId then
@@ -863,9 +862,11 @@ local Button = miscTab:CreateButton({
                end
             end
             cursor = result.nextPageCursor or ""
-         else
-            break
          end
+      end
+
+      repeat
+         GetServers()
       until cursor == "" or #servers >= 5
 
       if #servers > 0 then
@@ -874,9 +875,4 @@ local Button = miscTab:CreateButton({
       else
          Rayfield:Notify({
             Title = "Server Hop",
-            Content = "Tidak ditemukan server lain!",
-            Duration = 3
-         })
-      end
-   end,
-})
+            Content = "cannot find server!",
